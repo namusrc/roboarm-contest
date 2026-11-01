@@ -1,23 +1,65 @@
-from textual.app import ComposeResult
+from typing import Callable, Deque
+
+from textual.app import CommandCallback, ComposeResult
+from textual.binding import Binding
 from textual.screen import Screen
-from textual.widgets import Footer, Header, Log
+from textual.widgets import Footer, Header, Input, RichLog
 
 import ui_globals
 
-class Console(Screen):
-    BINDINGS = ui_globals.MAIN_FOOTER_BINDINGS
+from modules import logger
+
+class LogWidget(RichLog):
     DEFAULT_CSS = """
-    Log {
+    LogWidget {
         scrollbar-visibility: hidden;
     }
     """
+    def __init__(self) -> None:
+        super().__init__(auto_scroll=True, wrap=True)
+
+    def on_log(self, msg: str) -> None:
+        self.write(msg)
 
     def on_mount(self) -> None:
-        self.logInstance.write_line("Test")
-        self.logInstance.write_line("Lorem ipsum dolor sit amet, consectetur adipiscing elit. In laoreet ligula velit, a aliquam est volutpat nec. Sed odio mi, faucibus sit amet nunc quis, suscipit ultrices tellus. Praesent ut sollicitudin dui. Praesent at fringilla ipsum. Suspendisse vestibulum, turpis quis semper porttitor, ante diam vestibulum nisl, a ornare sem velit in lacus.")
+        logger.handler.subscribe(self.on_log)
+
+        logHistory = logger.handler.get_history()
+        for log in logHistory:
+            self.write(log)
+
+class CommandInput(Input):
+    DEFAULT_CSS = """
+    CommandInput {
+        margin: 0;
+    }
+    """
+
+    BINDINGS = [Binding("escape", "blur", "Blur", show=False)]
+
+    def __init__(self) -> None:
+        super().__init__(compact=True)
+        self.placeholder = "(i) Execute a command ..."
+
+    def action_blur(self) -> None:
+        self.blur()
+
+    def on_input_submitted(self):
+        logger.logger.info(self.value)
+        self.clear()
+        self.blur()
+
+class Console(Screen):
+    BINDINGS = ui_globals.MAIN_FOOTER_BINDINGS + [Binding("i", "input_focus", "Focus", show=False)]
+
+    def on_mount(self) -> None:
+        pass
+
+    def action_input_focus(self) -> None:
+        self.query_one(CommandInput).focus()
 
     def compose(self) -> ComposeResult:
-        self.logInstance = Log(auto_scroll=True)
         yield Header()
-        yield self.logInstance
+        yield LogWidget()
+        yield CommandInput()
         yield Footer()
