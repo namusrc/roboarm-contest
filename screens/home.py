@@ -1,3 +1,4 @@
+from textual.reactive import reactive
 from textual.app import ComposeResult
 from textual.containers import Container, Grid, Horizontal, Vertical
 from textual.screen import Screen
@@ -6,6 +7,8 @@ from textual.widgets import DataTable, Header, Footer, Label, Placeholder, Rule,
 
 from screens.console import LogWidget
 import ui_globals
+
+from modules.logger import logger
 
 class SizeAuto(Placeholder):
     DEFAULT_CSS = """
@@ -40,9 +43,28 @@ class RawSensorReading(Container):
     """
 
     _motor_names = ("Base", "Shoulder", "Elbow", "Wrist", "Gripper")
+    raw_readings: reactive[list[float]] = reactive([0, 0, 0, 0, 0], init=True)
 
     def on_mount(self) -> None:
         pass
+
+    def watch_raw_readings(self) -> None:
+        labels = self.query(Label)
+        readings = self.raw_readings
+        for label in labels:
+            if label.id is None:
+                continue
+            labeltype, index = label.id.split("_")
+            try:
+                reading = readings[int(index)]
+                if labeltype == "rawreading":
+                    label.update(f"{reading:.2f}")
+                elif labeltype == "angle":
+                    label.update(f"{(reading/4095*360):.2f}deg")
+            except IndexError:
+                logger.error(f"Failed to index for motor reading. Index: {index}")
+            except:
+                logger.error("Unhandled exception error.")
 
     def compose(self) -> ComposeResult:
         with Horizontal():
@@ -58,11 +80,11 @@ class RawSensorReading(Container):
             with Vertical():
                 yield Label("Raw Reading", classes="header")
                 for i in range(5):
-                    yield Label(str(i), classes="entry")
+                    yield Label(str(i), id=f"rawreading_{i}", classes="entry")
             with Vertical():
                 yield Label("Angle (deg)", classes="header")
                 for i in range(5):
-                    yield Label(str(i), classes="entry")
+                    yield Label(str(i), id=f"angle_{i}", classes="entry")
 
 class Home(Screen):
     DEFAULT_CSS = """
