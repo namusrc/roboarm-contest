@@ -1,0 +1,64 @@
+{
+  "connection": {
+    "serial_port": "/dev/ttyUSB0",
+    "baud_rate": 115200
+  },
+  "servo": {
+    "configs": {
+      "move_speed": 3000,
+      "move_acceleration": 254,
+      "pose_sequence_move_speed": 3000,
+      "pose_sequence_move_acceleration": 254,
+      "timestamp_move_speed": 800,
+      "timestamp_move_acceleration": 50,
+      "record_interval_seconds": 0.1
+    },
+    "joints": {
+      "base": {
+        "id": 1,
+        "zero_ticks": 2048,
+        "directions": 1,
+        "angle_limits": [
+          -90,
+          90
+        ]
+      },
+      "shoulder": {
+        "id": 2,
+        "zero_ticks": 2048,
+        "directions": 1,
+        "angle_limits": [
+          -90,
+          90
+        ]
+      },
+      "elbow": {
+        "id": 3,
+        "zero_ticks": 2048,
+        "directions": 1,
+        "angle_limits": [
+          -135,
+          135
+        ]
+      },
+      "wrist": {
+        "id": 4,
+        "zero_ticks": 2048,
+        "directions": 1,
+        "angle_limits": [
+          -135,
+          135
+        ]
+      },
+      "gripper": {
+        "id": 5,
+        "zero_ticks": 2048,
+        "directions": -1,
+        "angle_limits": [
+          -90,
+          90
+        ]
+      }
+    }
+  }
+}
