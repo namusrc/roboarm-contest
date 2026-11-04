@@ -6,6 +6,8 @@ from screens.home import Home
 
 import ui_globals
 
+import modules.arm_controller as arm
+
 class RoboarmControllerApp(App):
     SCREENS = { 
                "console": Console,
@@ -16,6 +18,8 @@ class RoboarmControllerApp(App):
     def on_mount(self) -> None:
         self.sub_title = "disconnected"
         self.push_screen('home')
+
+        arm.controller.connect()
 
 def main():
     app = RoboarmControllerApp()
