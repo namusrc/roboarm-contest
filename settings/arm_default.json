@@ -5,6 +5,7 @@
   },
   "servo": {
     "configs": {
+      "ticks_per_revolution": 4096,
       "move_speed": 3000,
       "move_acceleration": 254,
       "pose_sequence_move_speed": 3000,
