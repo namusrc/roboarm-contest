@@ -34,7 +34,7 @@ class ServoSettings:
         return cls(data["configs"], joints)
 
 @dataclass
-class DefaultSettings:
+class Settings:
     connection: ConnectionSettings
     servo: ServoSettings
 
@@ -44,4 +44,4 @@ class DefaultSettings:
 
 import json
 with open("./settings/arm_default.json") as f:
-    default_settings = DefaultSettings.from_json(json.loads(f.read()))
+    default_settings = Settings.from_json(json.loads(f.read()))
