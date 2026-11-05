@@ -8,6 +8,7 @@ from textual.widgets import Footer, Header, Input, RichLog
 import ui_globals
 
 from modules import logger
+from modules.shell import shell 
 
 class LogWidget(RichLog):
     DEFAULT_CSS = """
@@ -46,6 +47,7 @@ class CommandInput(Input):
 
     def on_input_submitted(self):
         logger.logger.info(self.value)
+        shell.run(self.value)
         self.clear()
         self.blur()
 
