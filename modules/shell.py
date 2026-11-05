@@ -2,7 +2,7 @@ import cmd
 
 from modules.logger import logger
 from modules.settings_loader import default_settings
-from modules.arm_controller import controller
+from modules.arm_controller import controller, MoveInstructionSingle
 
 class Shell():
     def do_connect(self):
@@ -19,6 +19,18 @@ class Shell():
                 method()
         except AttributeError:
             logger.error(f"No controller method named {methodname}")
+
+    def do_movesj(self, joint_id, rawpos):
+        if not joint_id or not rawpos:
+            raise ValueError("Expected two arguments: joint_id, rawpos") 
+        
+        joint_id = int(joint_id)
+        rawpos = int(rawpos)
+
+        joint = next(j for j in default_settings.servo.joints if j.id == joint_id)
+
+        logger.info(f"Moving single joint {joint.name} id {joint.id} to {rawpos}.")
+        controller.worker_thread.move_queue.append(MoveInstructionSingle(joint, rawpos))
 
     def default(self, cmd: str):
         logger.warning(f"Unknown command: {cmd}")
