@@ -10,7 +10,6 @@ from logger import logger
 
 class Worker(threading.Thread):
     frequency = 1
-    servo_positions: dict[str, ArmPosition] | None = None
     def __init__(self, event, frequency = 1):
         super().__init__()
         self.stopped = event
@@ -18,7 +17,7 @@ class Worker(threading.Thread):
     def run(self):
         # Loop over self.frequency times on a separate thread
         while not self.stopped.wait(1/self.frequency):
-            self.servo_positions = controller.get_pos_all()
+            controller.get_pos_all()
 
 # Arm positions helpers
 @dataclass
@@ -37,6 +36,8 @@ class Controller:
 
     worker_event: threading.Event
     worker_thread: Worker 
+
+    servo_positions: dict[str, ArmPosition] | None = None
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or default_settings
         self.port = None
@@ -67,7 +68,8 @@ class Controller:
             raise RuntimeError("Undefined packet handler")
 
         raw = arm.read_all(self.packet_handler)
-        return format_raw_pos(raw)
+        self.servo_positions = format_raw_pos(raw)
+        return self.servo_positions
 
     def start_worker(self) -> None:
         if not self.worker_event.is_set():

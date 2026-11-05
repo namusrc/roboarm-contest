@@ -28,7 +28,7 @@ class RawSensorReading(Container):
 
     def update_raw_readings(self) -> None:
         labels = self.query(Label)
-        readings = arm.controller.worker_thread.servo_positions 
+        readings = arm.controller.servo_positions
 
         if readings is None:
             return
