@@ -30,18 +30,22 @@ class Worker(threading.Thread):
     def run(self):
         # Loop over self.frequency times on a separate thread
         while not self.stopped.wait(1/self.frequency):
-            if self.move_queue:
-                move = self.move_queue.pop()
+            try:
+                if self.move_queue:
+                    move = self.move_queue.pop()
 
-                try: 
-                    if isinstance(move, MoveInstructionSingle):
-                        controller.move_joint(move)
-                    elif isinstance(move, MoveInstructionMultiple):
-                        pass
-                except Exception as err:
-                    logger.error(f"An error has occurred when running the move_qeue: {err}")
+                    try: 
+                        if isinstance(move, MoveInstructionSingle):
+                            controller.move_joint(move)
+                        elif isinstance(move, MoveInstructionMultiple):
+                            pass
+                    except Exception as err:
+                        logger.error(f"An error has occurred when running the move_qeue: {err}")
 
-            controller.get_pos_all()
+                controller.get_pos_all()
+            except Exception as err:
+                logger.error(f"An error has occured in the worker thread: {err}")
+            
 
 # Arm positions helpers
 @dataclass
