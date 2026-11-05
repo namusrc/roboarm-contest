@@ -93,7 +93,9 @@ class Controller:
 
         config = default_settings.servo.configs
         
-        return self.packet_handler.RegWritePosEx(move.joint.id, move.rawpos, config["move_speed"], config["move_acceleration"])
+        res = self.packet_handler.RegWritePosEx(move.joint.id, move.rawpos, config["move_speed"], config["move_acceleration"])
+        logger.info(f"move_joint called, response: {res}")
+        return res
 
     def get_pos_all(self):
         if not self.packet_handler:
