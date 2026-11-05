@@ -43,7 +43,7 @@ class Controller:
         self.packet_handler = None
 
         self.worker_event = threading.Event()
-        self.worker_thread = Worker(self.worker_event) 
+        self.worker_thread = Worker(self.worker_event, frequency=default_settings.global_poll_rate) 
     def connect(self) -> sms_sts | None:
         connection = self.settings.connection
         logger.info(f"Attempting to connect to: {connection.serial_port} at a BAUD rate of {connection.baud_rate}")

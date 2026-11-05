@@ -24,7 +24,7 @@ class RawSensorReading(Container):
     """
 
     def on_mount(self) -> None:
-        self.set_interval(0.1, self.update_raw_readings)
+        self.set_interval(1/default_settings.global_poll_rate, self.update_raw_readings)
 
     def update_raw_readings(self) -> None:
         labels = self.query(Label)
