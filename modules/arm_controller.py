@@ -74,6 +74,17 @@ class Controller:
         self.worker_event = threading.Event()
         self.worker_thread = Worker(self.worker_event, frequency=default_settings.global_poll_rate) 
     def connect(self) -> sms_sts | None:
+        if self.port is not None and self.port.is_open:
+            logger.warning("Serial port is already open. Use reconnect to reset the connection.")
+            return self.packet_handler
+
+        if self.worker_event.is_set() or self.worker_thread.ident is not None:
+            self.worker_event = threading.Event()
+            self.worker_thread = Worker(
+                self.worker_event,
+                frequency=self.settings.global_poll_rate,
+            )
+
         connection = self.settings.connection
         logger.info(f"Attempting to connect to: {connection.serial_port} at a BAUD rate of {connection.baud_rate}")
         port = None
@@ -90,6 +101,15 @@ class Controller:
             return packet_handler 
         except Exception as err:
             logger.error(f"Failed to connect to serial port. Error was raised: {err}")
+            if port is not None and port.is_open:
+                port.closePort()
+            self.port = None
+            self.packet_handler = None
+            return None
+
+    def reconnect(self) -> sms_sts | None:
+        self.quit_worker()
+        return self.connect()
 
     def move_joint(self, move: MoveInstructionSingle):
         if not self.packet_handler:
@@ -115,9 +135,14 @@ class Controller:
         
         self.worker_thread.start()
     def quit_worker(self) -> None:
-        if self.worker_event.is_set():
-            return
-        
         self.worker_event.set()
+        if self.worker_thread.is_alive():
+            self.worker_thread.join()
+
+        if self.port is not None and self.port.is_open:
+            self.port.closePort()
+        self.port = None
+        self.packet_handler = None
+        self.servo_positions = None
 
 controller = Controller()

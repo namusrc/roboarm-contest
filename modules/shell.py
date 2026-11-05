@@ -8,6 +8,9 @@ class Shell():
     def do_connect(self):
         controller.connect()
 
+    def do_reconnect(self):
+        controller.reconnect()
+
     def do_echo(self, line: str, *args: list[str]):
         logger.info(self.format(line))
 
