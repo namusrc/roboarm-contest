@@ -51,10 +51,10 @@ class Controller:
         except Exception as err:
             logger.error(f"Failed to connect to serial port. Error was raised: {err}")
 
-    def read_pos_all(self) -> None:
+    def get_pos_all(self) -> dict:
         if not self.packet_handler:
             raise RuntimeError("Undefined packet handler")
-        logger.info(arm.read_all(self.packet_handler))
+        return arm.read_all(self.packet_handler)
 
     def start_worker(self) -> None:
         if not self.worker_event.is_set():
