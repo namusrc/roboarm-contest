@@ -21,11 +21,11 @@ class MoveInstructionMultiple:
 
 class Worker(threading.Thread):
     frequency = 1
-    move_queue: deque[MoveInstructionSingle | MoveInstructionMultiple] = deque()
     def __init__(self, event, frequency = 1):
         super().__init__()
         self.stopped = event
         self.frequency = frequency
+        self.move_queue: deque[MoveInstructionSingle | MoveInstructionMultiple] = deque()
 
     def run(self):
         # Loop over self.frequency times on a separate thread
@@ -115,11 +115,43 @@ class Controller:
         if not self.packet_handler:
             raise RuntimeError("Undefined packet handler")
 
-        config = default_settings.servo.configs
-        
-        res = self.packet_handler.RegWritePosEx(move.joint.id, move.rawpos, config["move_speed"], config["move_acceleration"])
-        logger.info(f"move_joint called, response: {res}")
-        return res
+        if not 0 <= move.rawpos <= 4095:
+            raise ValueError("Raw servo position must be between 0 and 4095")
+
+        result, error = self.packet_handler.write1ByteTxRx(
+            move.joint.id,
+            arm.SMS_STS_TORQUE_ENABLE,
+            1,
+        )
+        arm.check_result(
+            self.packet_handler,
+            result,
+            error,
+            f"Enable torque for {move.joint.name}",
+        )
+
+        config = self.settings.servo.configs
+        result, error = self.packet_handler.RegWritePosEx(
+            move.joint.id,
+            move.rawpos,
+            config["move_speed"],
+            config["move_acceleration"],
+        )
+        arm.check_result(
+            self.packet_handler,
+            result,
+            error,
+            f"Register move for {move.joint.name}",
+        )
+
+        result = self.packet_handler.RegAction()
+        arm.check_result(
+            self.packet_handler,
+            result,
+            0,
+            f"Start move for {move.joint.name}",
+        )
+        logger.info(f"Move sent to {move.joint.name} (ID {move.joint.id}) at position {move.rawpos}.")
 
     def get_pos_all(self):
         if not self.packet_handler:
@@ -139,8 +171,14 @@ class Controller:
         if self.worker_thread.is_alive():
             self.worker_thread.join()
 
-        if self.port is not None and self.port.is_open:
-            self.port.closePort()
+        try:
+            if self.packet_handler is not None:
+                arm.disable_all_torque(self.packet_handler)
+        except Exception as err:
+            logger.error(f"Failed to disable servo torque during shutdown: {err}")
+        finally:
+            if self.port is not None and self.port.is_open:
+                self.port.closePort()
         self.port = None
         self.packet_handler = None
         self.servo_positions = None
