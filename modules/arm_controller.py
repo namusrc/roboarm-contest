@@ -56,4 +56,15 @@ class Controller:
             raise RuntimeError("Undefined packet handler")
         logger.info(arm.read_all(self.packet_handler))
 
+    def start_worker(self) -> None:
+        if not self.worker_event.is_set():
+            return
+        
+        self.worker_thread.start()
+    def quit_worker(self) -> None:
+        if self.worker_event.is_set():
+            return
+        
+        self.worker_event.set()
+
 controller = Controller()

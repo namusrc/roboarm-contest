@@ -21,6 +21,9 @@ class RoboarmControllerApp(App):
 
         arm.controller.connect()
 
+    def on_unmount(self) -> None:
+        arm.controller.quit_worker()
+
 def main():
     app = RoboarmControllerApp()
     app.run()
