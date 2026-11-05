@@ -4,6 +4,9 @@ from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Label
 
 from modules.logger import logger
+from modules.settings_loader import default_settings
+import modules.arm_controller as arm
+
 class RawSensorReading(Container):
     DEFAULT_CSS="""
     RawSensorReading Label {
@@ -20,46 +23,51 @@ class RawSensorReading(Container):
     }
     """
 
-    _motor_names = ("Base", "Shoulder", "Elbow", "Wrist", "Gripper")
-    raw_readings: reactive[list[float]] = reactive([0, 0, 0, 0, 0], init=True)
-
     def on_mount(self) -> None:
-        pass
+        self.set_interval(0.1, self.update_raw_readings)
 
-    def watch_raw_readings(self) -> None:
+    def update_raw_readings(self) -> None:
         labels = self.query(Label)
-        readings = self.raw_readings
+        readings = arm.controller.worker_thread.servo_positions 
+
+        if readings is None:
+            return
+
         for label in labels:
             if label.id is None:
                 continue
             labeltype, index = label.id.split("_")
             try:
-                reading = readings[int(index)]
+                joint = next(j for j in default_settings.servo.joints if j.id == int(index))
+                reading = readings[joint.name]
                 if labeltype == "rawreading":
-                    label.update(f"{reading:.2f}")
+                    label.update(f"{reading.raw}")
                 elif labeltype == "angle":
-                    label.update(f"{(reading/4095*360):.2f}deg")
+                    label.update(f"{reading.angle:.2f}deg")
             except IndexError:
                 logger.error(f"Failed to index for motor reading. Index: {index}")
-            except:
-                logger.error("Unhandled exception error.")
+            except Exception as err:
+                logger.error(f"Unhandled exception error: {err}")
 
     def compose(self) -> ComposeResult:
+        joints = default_settings.servo.joints
+        motor_count = len(joints)
+
         with Horizontal():
             with Vertical():
                 yield Label("Motor ID", classes="header")
-                for i in range(len(self._motor_names)):
+                for i  in range(motor_count):
                     # yield RobotInfo()
                     yield Label(f"Motor {i + 1}", classes="entry")
             with Vertical():
                 yield Label("Motor Name", classes="header")
-                for name in self._motor_names:
-                    yield Label(name, classes="entry")
+                for joint in joints:
+                    yield Label(joint.name, classes="entry")
             with Vertical():
                 yield Label("Raw Reading", classes="header")
-                for i in range(5):
+                for i in range(motor_count):
                     yield Label(str(i), id=f"rawreading_{i}", classes="entry")
             with Vertical():
                 yield Label("Angle (deg)", classes="header")
-                for i in range(5):
+                for i in range(motor_count):
                     yield Label(str(i), id=f"angle_{i}", classes="entry")
