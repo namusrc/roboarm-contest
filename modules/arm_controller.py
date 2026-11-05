@@ -11,6 +11,7 @@ class Worker(threading.Thread):
     frequency = 1
     servo_positions = []
     def __init__(self, event, frequency = 1):
+        super().__init__()
         self.stopped = event
         self.frequency = frequency
     def run(self):
