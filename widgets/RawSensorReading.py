@@ -65,9 +65,9 @@ class RawSensorReading(Container):
                     yield Label(joint.name, classes="entry")
             with Vertical():
                 yield Label("Raw Reading", classes="header")
-                for i in range(motor_count):
-                    yield Label(str(i), id=f"rawreading_{i}", classes="entry")
+                for joint in joints:
+                    yield Label("0", id=f"rawreading_{joint.id}", classes="entry")
             with Vertical():
                 yield Label("Angle (deg)", classes="header")
-                for i in range(motor_count):
-                    yield Label(str(i), id=f"angle_{i}", classes="entry")
+                for joint in joints:
+                    yield Label("0.00deg", id=f"angle_{joint.id}", classes="entry")
