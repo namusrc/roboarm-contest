@@ -28,7 +28,7 @@ class RawSensorReading(Container):
 
     def update_raw_readings(self) -> None:
         labels = self.query(Label)
-        readings = arm.controller.servo_positions
+        readings = arm.controller.servo_readings
 
         if readings is None:
             return
@@ -41,9 +41,11 @@ class RawSensorReading(Container):
                 joint = next(j for j in default_settings.servo.joints if j.id == int(index))
                 reading = readings[joint.name]
                 if labeltype == "rawreading":
-                    label.update(f"{reading.raw}")
+                    label.update(f"{reading.rawpos}")
                 elif labeltype == "angle":
                     label.update(f"{reading.angle:.2f}deg")
+                elif labeltype == "speed":
+                    label.update(f"{reading.speed:.2f}")
             except IndexError:
                 logger.error(f"Failed to index for motor reading. Index: {index}")
             except Exception as err:
@@ -71,3 +73,7 @@ class RawSensorReading(Container):
                 yield Label("Angle (deg)", classes="header")
                 for joint in joints:
                     yield Label("0.00deg", id=f"angle_{joint.id}", classes="entry")
+            with Vertical():
+                yield Label("Speed", classes="header")
+                for joint in joints:
+                    yield Label("0", id=f"speed_{joint.id}", classes="entry")

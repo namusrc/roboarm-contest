@@ -52,7 +52,7 @@ class Worker(threading.Thread):
                     except Exception as err:
                         logger.error(f"An error has occurred when running the move_qeue: {err}")
 
-                controller.get_pos_all()
+                controller.get_pos_speed_all()
             except Exception as err:
                 logger.error(f"An error has occured in the worker thread: {err}")
             
@@ -66,6 +66,12 @@ class ArmPosition:
 def format_raw_pos(rawpos: dict) -> dict[str, ArmPosition]:
     return { name: ArmPosition(reading, arm.position_to_angle(name, reading)) for name, reading in rawpos.items() }
 
+@dataclass
+class ServoReading:
+    rawpos: int
+    angle: float
+    speed: int
+
 class Controller:
     settings: Settings
 
@@ -76,6 +82,7 @@ class Controller:
     worker_thread: Worker 
 
     servo_positions: dict[str, ArmPosition] | None = None
+    servo_readings: dict[str, ServoReading] | None = None
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or default_settings
         self.port = None
@@ -184,6 +191,21 @@ class Controller:
         raw = arm.read_all(self.packet_handler)
         self.servo_positions = format_raw_pos(raw)
         return self.servo_positions
+    
+    def get_pos_speed_all(self):
+        if not self.packet_handler:
+            raise RuntimeError("Undefined packet handler")
+        
+        readings: dict[str, ServoReading] = {}
+
+        for joint in default_settings.servo.joints:
+            position, speed, result, error = self.packet_handler.ReadPosSpeed(joint.id)
+
+            arm.check_result(self.packet_handler, result, error, f"Read servo {joint.id}")
+            
+            readings[joint.name] = ServoReading(position, arm.position_to_angle(joint.name, position), speed)
+
+        self.servo_readings = readings
 
     def start_worker(self) -> None:
         if not self.worker_event.is_set():
