@@ -23,17 +23,20 @@ class Shell():
         except AttributeError:
             logger.error(f"No controller method named {methodname}")
 
-    def do_movesj(self, joint_id, rawpos):
+    def do_movesj(self, joint_id, rawpos, speed = None, accel = None):
         if not joint_id or not rawpos:
             raise ValueError("Expected two arguments: joint_id, rawpos") 
         
         joint_id = int(joint_id)
         rawpos = int(rawpos)
+        speed = int(speed) if speed else default_settings.servo.configs["move_speed"]
+        accel = int(accel) if accel else default_settings.servo.configs["move_acceleration"]
+
 
         joint = next(j for j in default_settings.servo.joints if j.id == joint_id)
 
         logger.info(f"Moving single joint {joint.name} id {joint.id} to {rawpos}.")
-        controller.worker_thread.move_queue.append(MoveInstructionSingle(joint, rawpos))
+        controller.worker_thread.move_queue.append(MoveInstructionSingle(joint, rawpos, speed, accel))
 
     def default(self, cmd: str):
         logger.warning(f"Unknown command: {cmd}")

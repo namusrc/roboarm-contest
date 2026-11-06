@@ -13,7 +13,9 @@ from collections import deque
 @dataclass
 class MoveInstructionSingle:
     joint: JointSettings 
-    rawpos: int 
+    rawpos: int
+    speed: int = default_settings.servo.configs["move_speed"]
+    acceleration: int = default_settings.servo.configs["move_acceleration"]
 @dataclass
 class MoveInstructionMultiple:
     joints: list[JointSettings]
@@ -130,12 +132,11 @@ class Controller:
             f"Enable torque for {move.joint.name}",
         )
 
-        config = self.settings.servo.configs
         result, error = self.packet_handler.RegWritePosEx(
             move.joint.id,
             move.rawpos,
-            config["move_speed"],
-            config["move_acceleration"],
+            move.speed,
+            move.acceleration,
         )
         arm.check_result(
             self.packet_handler,
