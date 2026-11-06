@@ -156,7 +156,7 @@ class Controller:
             f"Enable torque for {move.joint.name}",
         )
 
-        result, error = self.packet_handler.RegWritePosEx(
+        result, error = self.packet_handler.WritePosEx(
             move.joint.id,
             rawpos,
             move.speed,
@@ -169,13 +169,6 @@ class Controller:
             f"Register move for {move.joint.name}",
         )
 
-        result = self.packet_handler.RegAction()
-        arm.check_result(
-            self.packet_handler,
-            result,
-            0,
-            f"Start move for {move.joint.name}",
-        )
         logger.info(f"Move sent to {move.joint.name} (ID {move.joint.id}) at position {rawpos}.")
 
     def disable_torque(self) -> None:
