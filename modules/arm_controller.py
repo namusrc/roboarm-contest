@@ -154,6 +154,12 @@ class Controller:
         )
         logger.info(f"Move sent to {move.joint.name} (ID {move.joint.id}) at position {move.rawpos}.")
 
+    def disable_torque(self) -> None:
+        if not self.packet_handler:
+            raise RuntimeError("Undefined packet handler")
+
+        arm.disable_all_torque(self.packet_handler)
+
     def get_pos_all(self):
         if not self.packet_handler:
             raise RuntimeError("Undefined packet handler")
