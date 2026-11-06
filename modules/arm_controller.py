@@ -11,13 +11,17 @@ from logger import logger
 from collections import deque
 
 @dataclass
-class MoveInstructionSingle:
+class WorkerInstruction:
+    pass
+
+@dataclass
+class MoveInstructionSingle(WorkerInstruction):
     joint: JointSettings 
     rawpos: int
     speed: int = default_settings.servo.configs["move_speed"]
     acceleration: int = default_settings.servo.configs["move_acceleration"]
 @dataclass
-class MoveInstructionMultiple:
+class MoveInstructionMultiple(WorkerInstruction):
     joints: list[JointSettings]
     rawpositions: list[int]
 
@@ -27,7 +31,7 @@ class Worker(threading.Thread):
         super().__init__()
         self.stopped = event
         self.frequency = frequency
-        self.move_queue: deque[MoveInstructionSingle | MoveInstructionMultiple] = deque()
+        self.move_queue: deque[WorkerInstruction] = deque()
 
     def run(self):
         # Loop over self.frequency times on a separate thread
