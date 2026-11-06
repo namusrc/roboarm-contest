@@ -2,7 +2,7 @@ import cmd
 
 from modules.logger import logger
 from modules.settings_loader import default_settings
-from modules.arm_controller import controller, MoveInstructionSingle
+from modules.arm_controller import controller, MoveInstructionSingle, DisableTorqueInstruction
 
 class Shell():
     def do_connect(self):
@@ -22,6 +22,9 @@ class Shell():
                 method()
         except AttributeError:
             logger.error(f"No controller method named {methodname}")
+    
+    def do_torqueoff(self) -> None:
+        controller.worker_thread.move_queue.append(DisableTorqueInstruction())
 
     def do_movesj(self, joint_id, rawpos, speed = None, accel = None):
         if not joint_id or not rawpos:
