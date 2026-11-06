@@ -13,7 +13,9 @@ from collections import deque
 @dataclass
 class WorkerInstruction:
     pass
-
+@dataclass
+class DisableTorqueInstruction(WorkerInstruction):
+    pass
 @dataclass
 class MoveInstructionSingle(WorkerInstruction):
     joint: JointSettings 
@@ -45,6 +47,8 @@ class Worker(threading.Thread):
                             controller.move_joint(move)
                         elif isinstance(move, MoveInstructionMultiple):
                             pass
+                        elif isinstance(move, DisableTorqueInstruction):
+                            controller.disable_torque()
                     except Exception as err:
                         logger.error(f"An error has occurred when running the move_qeue: {err}")
 
