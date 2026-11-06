@@ -117,7 +117,16 @@ class Controller:
         if not self.packet_handler:
             raise RuntimeError("Undefined packet handler")
 
-        if not 0 <= move.rawpos <= 4095:
+        rawpos = move.rawpos
+        limits = move.joint.raw_position_limits
+        if limits is not None:
+            rawpos = min(max(rawpos, limits[0]), limits[1])
+            if rawpos != move.rawpos:
+                logger.warning(
+                    f"Clamping {move.joint.name} position from {move.rawpos} to {rawpos}."
+                )
+
+        if not 0 <= rawpos <= 4095:
             raise ValueError("Raw servo position must be between 0 and 4095")
 
         result, error = self.packet_handler.write1ByteTxRx(
@@ -134,7 +143,7 @@ class Controller:
 
         result, error = self.packet_handler.RegWritePosEx(
             move.joint.id,
-            move.rawpos,
+            rawpos,
             move.speed,
             move.acceleration,
         )
@@ -152,7 +161,7 @@ class Controller:
             0,
             f"Start move for {move.joint.name}",
         )
-        logger.info(f"Move sent to {move.joint.name} (ID {move.joint.id}) at position {move.rawpos}.")
+        logger.info(f"Move sent to {move.joint.name} (ID {move.joint.id}) at position {rawpos}.")
 
     def disable_torque(self) -> None:
         if not self.packet_handler:

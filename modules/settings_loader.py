@@ -17,6 +17,7 @@ class JointSettings:
     zero_ticks: int
     directions: int
     angle_limits: tuple[int, int]
+    raw_position_limits: tuple[int, int] | None = None
 
 @dataclass
 class ServoSettings:
@@ -30,7 +31,17 @@ class ServoSettings:
         joints: list[JointSettings] = []
         for name in joints_names:
             joint: dict = joints_raw[name]
-            joints.append(JointSettings(name, joint["id"], joint["zero_ticks"], joint["directions"], tuple(joint["angle_limits"])))
+            raw_position_limits = joint.get("raw_position_limits")
+            joints.append(
+                JointSettings(
+                    name,
+                    joint["id"],
+                    joint["zero_ticks"],
+                    joint["directions"],
+                    tuple(joint["angle_limits"]),
+                    tuple(raw_position_limits) if raw_position_limits is not None else None,
+                )
+            )
         return cls(data["configs"], joints)
 
 @dataclass
