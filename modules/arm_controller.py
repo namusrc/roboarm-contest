@@ -56,11 +56,11 @@ class MoveSingleJoint(WorkerInstruction):
         curpos = readings.rawpos
         rawpos = self.rawpos % MAX_TICKS
 
+        # Stolen from https://math.stackexchange.com/questions/1649841/signed-angle-difference-without-conditions/1649850#1649850
         delta = (rawpos - curpos + 3/2*MAX_TICKS) % MAX_TICKS - MAX_TICKS/2 
         dist = abs(delta)
 
         if not self.set_direction:
-            # Stolen from https://math.stackexchange.com/questions/1649841/signed-angle-difference-without-conditions/1649850#1649850
             self.speed *= sign(delta)
             self.set_direction = True
 
