@@ -95,6 +95,9 @@ class sms_sts(protocol_packet_handler):
     def RegAction(self):
         return self.action(BROADCAST_ID)
 
+    def NormalMode(self, scs_id):
+        return self.write1ByteTxRx(scs_id, SMS_STS_MODE, 0)
+
     def WheelMode(self, scs_id):
         return self.write1ByteTxRx(scs_id, SMS_STS_MODE, 1)
 

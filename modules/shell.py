@@ -2,7 +2,7 @@ import cmd
 
 from modules.logger import logger
 from modules.settings_loader import default_settings
-from modules.arm_controller import controller, MoveInstructionSingle, DisableTorqueInstruction
+from modules.arm_controller import controller, MoveInstructionSingle, DisableTorqueInstruction, SetSpeedInstructionSingle
 
 class Shell():
     def do_connect(self):
@@ -40,6 +40,17 @@ class Shell():
 
         logger.info(f"Moving single joint {joint.name} id {joint.id} to {rawpos}.")
         controller.worker_thread.move_queue.append(MoveInstructionSingle(joint, rawpos, speed, accel))
+
+    def do_sjspeed(self, joint_id, speed = None, accel = None):
+        if not joint_id:
+            raise ValueError("Expected arguments: joint_id") 
+
+        joint_id = int(joint_id)
+        speed = int(speed) if speed else 500
+        accel = int(accel) if accel else default_settings.servo.configs["move_acceleration"]
+
+        joint = next(j for j in default_settings.servo.joints if j.id == joint_id)
+        controller.worker_thread.move_queue.append(SetSpeedInstructionSingle(joint, speed, accel))
 
     def default(self, cmd: str):
         logger.warning(f"Unknown command: {cmd}")

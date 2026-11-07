@@ -26,6 +26,14 @@ class MoveInstructionSingle(WorkerInstruction):
 class MoveInstructionMultiple(WorkerInstruction):
     joints: list[JointSettings]
     rawpositions: list[int]
+@dataclass
+class SetSpeedInstructionSingle(WorkerInstruction):
+    joint: JointSettings
+    speed: int
+    acceleration: int
+
+ROBOT_MODE_MANUAL = 0
+ROBOT_MODE_P0INTS = 1
 
 class Worker(threading.Thread):
     frequency = 1
@@ -34,6 +42,7 @@ class Worker(threading.Thread):
         self.stopped = event
         self.frequency = frequency
         self.move_queue: deque[WorkerInstruction] = deque()
+        self.mode = ROBOT_MODE_MANUAL
 
     def run(self):
         # Loop over self.frequency times on a separate thread
@@ -49,6 +58,8 @@ class Worker(threading.Thread):
                             pass
                         elif isinstance(move, DisableTorqueInstruction):
                             controller.disable_torque()
+                        elif isinstance(move, SetSpeedInstructionSingle):
+                            controller.joint_set_speed(move)
                     except Exception as err:
                         logger.error(f"An error has occurred when running the move_qeue: {err}")
 
@@ -171,9 +182,19 @@ class Controller:
 
         logger.info(f"Move sent to {move.joint.name} (ID {move.joint.id}) at position {rawpos}.")
 
+    def joint_set_speed(self, inst: SetSpeedInstructionSingle):
+        if not self.packet_handler:
+            raise RuntimeError("Undefined packet handler")
+
+        self.packet_handler.WheelMode(inst.joint.id)
+        self.packet_handler.WriteSpec(inst.joint.id, inst.speed, inst.acceleration)
+
     def disable_torque(self) -> None:
         if not self.packet_handler:
             raise RuntimeError("Undefined packet handler")
+        
+        for joint in default_settings.servo.joints:
+            self.packet_handler.NormalMode(joint.id)
 
         arm.disable_all_torque(self.packet_handler)
 
