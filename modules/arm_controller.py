@@ -199,6 +199,8 @@ class ServoReading:
     rawpos: int
     angle: float
     speed: int
+    accel: int
+    readtime: float
 
 class Controller:
     settings: Settings
@@ -209,8 +211,10 @@ class Controller:
     worker_event: threading.Event
     worker_thread: Worker 
 
-    servo_positions: dict[str, ArmPosition] | None = None
+    servo_positions: dict[str, ArmPosition] | None = None # Deprecated?
+
     servo_readings: dict[str, ServoReading] | None = None
+
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or default_settings
         self.port = None
@@ -287,11 +291,24 @@ class Controller:
         readings: dict[str, ServoReading] = {}
 
         for joint in default_settings.servo.joints:
-            position, speed, result, error = self.packet_handler.ReadPosSpeed(joint.id)
+            position, result, error = self.packet_handler.ReadPos(joint.id)
+            new_reading_time = time.monotonic()
 
             arm.check_result(self.packet_handler, result, error, f"Read servo {joint.id}")
             
-            readings[joint.name] = ServoReading(position, arm.position_to_angle(joint.name, position), speed)
+            speed = 0
+            accel = 0
+
+            if self.servo_readings:
+                reading = self.servo_readings[joint.name]
+
+                delta_displacement = (position - reading.rawpos + 3/2*MAX_TICKS) % MAX_TICKS - MAX_TICKS/2 
+
+                dt = new_reading_time - reading.readtime
+                speed = round(delta_displacement/dt)
+                accel = round((speed - reading.speed)/dt)
+            
+            readings[joint.name] = ServoReading(position, arm.position_to_angle(joint.name, position), speed, accel, new_reading_time)
 
         self.servo_readings = readings
 

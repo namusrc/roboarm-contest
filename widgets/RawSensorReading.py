@@ -46,6 +46,8 @@ class RawSensorReading(Container):
                     label.update(f"{reading.angle:.2f}deg")
                 elif labeltype == "speed":
                     label.update(f"{reading.speed:.2f}")
+                elif labeltype == "accel":
+                    label.update(f"{reading.accel:.2f}")
             except IndexError:
                 logger.error(f"Failed to index for motor reading. Index: {index}")
             except Exception as err:
@@ -77,3 +79,7 @@ class RawSensorReading(Container):
                 yield Label("Speed", classes="header")
                 for joint in joints:
                     yield Label("0", id=f"speed_{joint.id}", classes="entry")
+            with Vertical():
+                yield Label("Accel", classes="header")
+                for joint in joints:
+                    yield Label("0", id=f"accel_{joint.id}", classes="entry")
