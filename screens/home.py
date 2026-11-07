@@ -33,6 +33,7 @@ class Home(Screen):
         height: 2fr
     }
     """
+    BINDINGS = ui_globals.MAIN_FOOTER_BINDINGS
 
     def compose(self) -> ComposeResult:
         yield Header()
