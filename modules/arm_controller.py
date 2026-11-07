@@ -155,6 +155,8 @@ class Controller:
         if not 0 <= rawpos <= 4095:
             raise ValueError("Raw servo position must be between 0 and 4095")
 
+        self.packet_handler.NormalMode(move.joint.id)
+
         result, error = self.packet_handler.write1ByteTxRx(
             move.joint.id,
             arm.SMS_STS_TORQUE_ENABLE,
