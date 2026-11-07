@@ -10,30 +10,77 @@ from logger import logger
 
 from collections import deque
 
-@dataclass
-class WorkerInstruction:
-    pass
-@dataclass
-class DisableTorqueInstruction(WorkerInstruction):
-    pass
-@dataclass
-class MoveInstructionSingle(WorkerInstruction):
-    joint: JointSettings 
-    rawpos: int
-    speed: int = default_settings.servo.configs["move_speed"]
-    acceleration: int = default_settings.servo.configs["move_acceleration"]
-@dataclass
-class MoveInstructionMultiple(WorkerInstruction):
-    joints: list[JointSettings]
-    rawpositions: list[int]
-@dataclass
-class SetSpeedInstructionSingle(WorkerInstruction):
-    joint: JointSettings
-    speed: int
-    acceleration: int
+from abc import ABC, abstractmethod
 
-ROBOT_MODE_MANUAL = 0
-ROBOT_MODE_P0INTS = 1
+MAX_TICKS = default_settings.servo.configs["ticks_per_revolution"] or 4096
+
+# Helper function, move elsewhere later plz
+def within(value: float, target: float, threshold: int):
+    return (value <= (target + threshold)) and (value >= (target - threshold))
+def sign(value: float):
+    if value == 0:
+        return value
+    return -1 if value < 0  else 1
+
+class WorkerInstruction(ABC):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.finished = False
+
+    @abstractmethod
+    def run(self) -> None:
+        if (controller.packet_handler and controller.port) is None:
+            self.finished = True
+            raise RuntimeError("No connection found")
+
+class MoveSingleJoint(WorkerInstruction):
+    def __init__(self, joint: JointSettings, rawpos: int, speed: int | None, accel: int | None) -> None:
+        super().__init__()
+
+        self.joint = joint
+        self.rawpos = rawpos
+        self.speed = speed or default_settings.servo.configs["move_speed"]
+        self.accel = accel or default_settings.servo.configs["move_acceleration"]
+
+        self.set_direction = False
+
+    def run(self) -> None:
+        super().run()
+        if controller.servo_readings is None:
+            # Give up and quit if there's no servo readings LMFAO
+            self.finished = True
+            raise RuntimeError("Servo readings required.")
+
+        readings = controller.servo_readings[self.joint.name]
+        curpos = readings.rawpos
+        rawpos = self.rawpos % MAX_TICKS
+
+        delta = (rawpos - curpos + 3/2*MAX_TICKS) % MAX_TICKS - MAX_TICKS/2 
+        dist = abs(delta)
+
+        if not self.set_direction:
+            # Stolen from https://math.stackexchange.com/questions/1649841/signed-angle-difference-without-conditions/1649850#1649850
+            self.speed *= sign(delta)
+            self.set_direction = True
+
+        # TODO: Current logic can completely overshoot the target position, maybe a dynamic solution involving the speed?
+        # For funny result try running at default speed (3000)
+        if dist <= self.speed or sign(self.speed) != sign(delta):
+            controller.joint_set_speed(self.joint.id, 0, self.accel)
+            self.finished = True
+            return
+        
+        controller.joint_set_speed(self.joint.id, round(self.speed), self.accel)
+
+class DisableTorque(WorkerInstruction):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def run(self) -> None:
+        super().run()
+        controller.disable_torque()
+        self.finished = True
 
 class Worker(threading.Thread):
     frequency = 1
@@ -41,25 +88,22 @@ class Worker(threading.Thread):
         super().__init__()
         self.stopped = event
         self.frequency = frequency
-        self.move_queue: deque[WorkerInstruction] = deque()
-        self.mode = ROBOT_MODE_MANUAL
+        self.inst_queue: deque[WorkerInstruction] = deque()
+
+        self.current_instruction: WorkerInstruction | None = None
 
     def run(self):
         # Loop over self.frequency times on a separate thread
         while not self.stopped.wait(1/self.frequency):
             try:
-                if self.move_queue:
-                    move = self.move_queue.pop()
+                if self.current_instruction and not self.current_instruction.finished:
+                    self.current_instruction.run()
+                elif self.inst_queue:
+                    inst = self.inst_queue.pop()
+                    self.current_instruction = inst
 
                     try: 
-                        if isinstance(move, MoveInstructionSingle):
-                            controller.move_joint(move)
-                        elif isinstance(move, MoveInstructionMultiple):
-                            pass
-                        elif isinstance(move, DisableTorqueInstruction):
-                            controller.disable_torque()
-                        elif isinstance(move, SetSpeedInstructionSingle):
-                            controller.joint_set_speed(move)
+                        pass
                     except Exception as err:
                         logger.error(f"An error has occurred when running the move_qeue: {err}")
 
@@ -139,57 +183,12 @@ class Controller:
         self.quit_worker()
         return self.connect()
 
-    def move_joint(self, move: MoveInstructionSingle):
+    def joint_set_speed(self, joint_id: int, speed: int, accel: int):
         if not self.packet_handler:
             raise RuntimeError("Undefined packet handler")
 
-        rawpos = move.rawpos
-        limits = move.joint.raw_position_limits
-        if limits is not None:
-            rawpos = min(max(rawpos, limits[0]), limits[1])
-            if rawpos != move.rawpos:
-                logger.warning(
-                    f"Clamping {move.joint.name} position from {move.rawpos} to {rawpos}."
-                )
-
-        if not 0 <= rawpos <= 4095:
-            raise ValueError("Raw servo position must be between 0 and 4095")
-
-        self.packet_handler.NormalMode(move.joint.id)
-
-        result, error = self.packet_handler.write1ByteTxRx(
-            move.joint.id,
-            arm.SMS_STS_TORQUE_ENABLE,
-            1,
-        )
-        arm.check_result(
-            self.packet_handler,
-            result,
-            error,
-            f"Enable torque for {move.joint.name}",
-        )
-
-        result, error = self.packet_handler.WritePosEx(
-            move.joint.id,
-            rawpos,
-            move.speed,
-            move.acceleration,
-        )
-        arm.check_result(
-            self.packet_handler,
-            result,
-            error,
-            f"Register move for {move.joint.name}",
-        )
-
-        logger.info(f"Move sent to {move.joint.name} (ID {move.joint.id}) at position {rawpos}.")
-
-    def joint_set_speed(self, inst: SetSpeedInstructionSingle):
-        if not self.packet_handler:
-            raise RuntimeError("Undefined packet handler")
-
-        self.packet_handler.WheelMode(inst.joint.id)
-        self.packet_handler.WriteSpec(inst.joint.id, inst.speed, inst.acceleration)
+        self.packet_handler.WheelMode(joint_id)
+        self.packet_handler.WriteSpec(joint_id, speed, accel)
 
     def disable_torque(self) -> None:
         if not self.packet_handler:
