@@ -46,7 +46,7 @@ class ServoSettings:
 
 @dataclass
 class Settings:
-    global_poll_rate = 30
+    global_poll_rate = 10
     connection: ConnectionSettings
     servo: ServoSettings
 
