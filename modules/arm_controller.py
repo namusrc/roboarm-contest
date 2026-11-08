@@ -25,10 +25,10 @@ existing_log_numbers = (
 )
 DIAGNOSTIC_LOG_PATH = LOG_DIR / f"{max(existing_log_numbers, default=0) + 1}.csv" # Just number the logs sequentially, not using timestamps
 DIAGNOSTIC_FIELDNAMES = ["elapsed_seconds", "delta_seconds"]
-for configured_joint in default_settings.servo.joints:
-    DIAGNOSTIC_FIELDNAMES.extend(
-        (f"{configured_joint.name}_rawpos", f"{configured_joint.name}_angle")
-    )
+# for configured_joint in default_settings.servo.joints:
+#     DIAGNOSTIC_FIELDNAMES.extend(
+#         (f"{configured_joint.name}_rawpos", f"{configured_joint.name}_angle")
+#     )
 _diagnostic_log_initialized = False
 
 # Helper function, move elsewhere later plz
@@ -91,7 +91,7 @@ class MoveSingleJoint(WorkerInstruction):
         controller.joint_set_speed(self.joint.id, round(self.speed), self.accel)
 
 class SingleJointSpeedDiag(WorkerInstruction):
-    duration_seconds = 1
+    duration_seconds = 3
 
     def __init__(self, joint: JointSettings, speed: int, accel: int) -> None:
         super().__init__()
@@ -102,6 +102,8 @@ class SingleJointSpeedDiag(WorkerInstruction):
         self.started_at: float | None = None
         self.last_tick_at: float | None = None
 
+        self.data = []
+
         LOG_DIR.mkdir(parents=True, exist_ok=True)
         global _diagnostic_log_initialized
         if not _diagnostic_log_initialized:
@@ -109,7 +111,7 @@ class SingleJointSpeedDiag(WorkerInstruction):
                 DIAGNOSTIC_LOG_PATH,
                 np.empty((0, len(DIAGNOSTIC_FIELDNAMES))),
                 delimiter=",",
-                header=",".join(DIAGNOSTIC_FIELDNAMES),
+                header=",".join(DIAGNOSTIC_FIELDNAMES + [self.joint.name]),
                 comments="",
             )
             _diagnostic_log_initialized = True
@@ -120,29 +122,35 @@ class SingleJointSpeedDiag(WorkerInstruction):
             self.finished = True
             raise RuntimeError("Servo readings required.")
 
+        elapsed = 0.0
+        delta = 0.0
+
         now = time.monotonic()
         if self.started_at is None:
             self.started_at = now
             self.last_tick_at = now
-            elapsed = 0.0
-            delta = 0.0
-        else:
+        elif self.last_tick_at is not None:
             elapsed = now - self.started_at
             delta = now - self.last_tick_at
             self.last_tick_at = now
 
         row = [elapsed, delta]
-        for configured_joint in default_settings.servo.joints:
-            reading = controller.servo_readings[configured_joint.name]
-            row.extend((reading.rawpos, reading.angle))
+        reading = controller.servo_readings[self.joint.name]
+        row.append(reading.rawpos)
 
-        with DIAGNOSTIC_LOG_PATH.open("ab") as log_file:
-            np.savetxt(log_file, np.asarray([row]), delimiter=",")
+        self.data.append(row)
+
+        if elapsed >= (self.duration_seconds + 1):
+            self.finished = True
+
+            with DIAGNOSTIC_LOG_PATH.open("ab") as log_file:
+                np.savetxt(log_file, np.asarray(self.data), delimiter=",")
+            return
 
         if elapsed >= self.duration_seconds:
             controller.joint_set_speed(self.joint.id, 0, self.accel)
-            self.finished = True
-            return
+
+            return 
 
         controller.joint_set_speed(self.joint.id, self.speed, self.accel)
 
