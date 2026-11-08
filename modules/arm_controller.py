@@ -1,5 +1,9 @@
 from dataclasses import dataclass
+from pathlib import Path
 import threading
+import time
+
+import numpy as np
 
 from modules.scservo_sdk.port_handler import PortHandler
 from modules.settings_loader import JointSettings, Settings, default_settings
@@ -13,6 +17,19 @@ from collections import deque
 from abc import ABC, abstractmethod
 
 MAX_TICKS = default_settings.servo.configs["ticks_per_revolution"] or 4096
+LOG_DIR = Path(__file__).resolve().parent.parent / "modules/logs"
+existing_log_numbers = (
+    int(path.stem)
+    for path in LOG_DIR.glob("*.csv")
+    if path.stem.isdecimal()
+)
+DIAGNOSTIC_LOG_PATH = LOG_DIR / f"{max(existing_log_numbers, default=0) + 1}.csv" # Just number the logs sequentially, not using timestamps
+DIAGNOSTIC_FIELDNAMES = ["elapsed_seconds", "delta_seconds"]
+for configured_joint in default_settings.servo.joints:
+    DIAGNOSTIC_FIELDNAMES.extend(
+        (f"{configured_joint.name}_rawpos", f"{configured_joint.name}_angle")
+    )
+_diagnostic_log_initialized = False
 
 # Helper function, move elsewhere later plz
 def within(value: float, target: float, threshold: int):
@@ -72,6 +89,62 @@ class MoveSingleJoint(WorkerInstruction):
             return
         
         controller.joint_set_speed(self.joint.id, round(self.speed), self.accel)
+
+class SingleJointSpeedDiag(WorkerInstruction):
+    duration_seconds = 1
+
+    def __init__(self, joint: JointSettings, speed: int, accel: int) -> None:
+        super().__init__()
+
+        self.joint = joint
+        self.speed = speed
+        self.accel = accel
+        self.started_at: float | None = None
+        self.last_tick_at: float | None = None
+
+        LOG_DIR.mkdir(parents=True, exist_ok=True)
+        global _diagnostic_log_initialized
+        if not _diagnostic_log_initialized:
+            np.savetxt(
+                DIAGNOSTIC_LOG_PATH,
+                np.empty((0, len(DIAGNOSTIC_FIELDNAMES))),
+                delimiter=",",
+                header=",".join(DIAGNOSTIC_FIELDNAMES),
+                comments="",
+            )
+            _diagnostic_log_initialized = True
+
+    def run(self):
+        super().run()
+        if controller.servo_readings is None:
+            self.finished = True
+            raise RuntimeError("Servo readings required.")
+
+        now = time.monotonic()
+        if self.started_at is None:
+            self.started_at = now
+            self.last_tick_at = now
+            elapsed = 0.0
+            delta = 0.0
+        else:
+            elapsed = now - self.started_at
+            delta = now - self.last_tick_at
+            self.last_tick_at = now
+
+        row = [elapsed, delta]
+        for configured_joint in default_settings.servo.joints:
+            reading = controller.servo_readings[configured_joint.name]
+            row.extend((reading.rawpos, reading.angle))
+
+        with DIAGNOSTIC_LOG_PATH.open("ab") as log_file:
+            np.savetxt(log_file, np.asarray([row]), delimiter=",")
+
+        if elapsed >= self.duration_seconds:
+            controller.joint_set_speed(self.joint.id, 0, self.accel)
+            self.finished = True
+            return
+
+        controller.joint_set_speed(self.joint.id, self.speed, self.accel)
 
 class DisableTorque(WorkerInstruction):
     def __init__(self) -> None:
