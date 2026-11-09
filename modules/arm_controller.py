@@ -175,7 +175,7 @@ class Worker(threading.Thread):
 
     def run(self):
         # Loop over self.frequency times on a separate thread
-        while not self.stopped.wait(1/self.frequency):
+        while not self.stopped.wait(0):
             try:
                 if self.current_instruction and not self.current_instruction.finished:
                     self.current_instruction.run()
@@ -187,7 +187,6 @@ class Worker(threading.Thread):
                         pass
                     except Exception as err:
                         logger.error(f"An error has occurred when running the move_qeue: {err}")
-
                 controller.get_pos_speed_all()
             except Exception as err:
                 logger.error(f"An error has occured in the worker thread: {err}")
@@ -227,6 +226,8 @@ class Controller:
         self.settings = settings or default_settings
         self.port = None
         self.packet_handler = None
+
+        self.debug = 0
 
         self.worker_event = threading.Event()
         self.worker_thread = Worker(self.worker_event, frequency=default_settings.global_poll_rate) 
