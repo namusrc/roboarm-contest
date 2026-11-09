@@ -90,6 +90,37 @@ class MoveSingleJoint(WorkerInstruction):
         
         controller.joint_set_speed(self.joint.id, round(self.speed), self.accel)
 
+# Naive approach to moving all joints by using normal mode
+class MoveJointsNaive(WorkerInstruction):
+    def __init__(self, joints: dict[str, int]) -> None:
+        super().__init__()
+
+        self.joints = joints
+
+    def run(self) -> None:
+        super().run()
+
+        if not controller.packet_handler:
+            return
+
+        # speed = default_settings.servo.configs["move_speed"]
+        speed = 500
+        accel = default_settings.servo.configs["move_acceleration"]
+        try:
+            for name, pos in self.joints.items():
+                joint_id = next(j.id for j in default_settings.servo.joints if j.name == name)
+                res = controller.packet_handler.SyncWritePosEx(joint_id, pos, speed, accel)
+
+                if not res:
+                    raise RuntimeError(f"An error was raised when adding {name} to synchronized move")
+
+            result = controller.packet_handler.groupSyncWrite.txPacket()
+            if result != arm.COMM_SUCCESS:
+                raise RuntimeError(controller.packet_handler.getTxRxResult(result))
+        finally:
+            controller.packet_handler.groupSyncWrite.clearParam()
+            self.finished = True
+
 class SingleJointSpeedDiag(WorkerInstruction):
     duration_seconds = 3
 
@@ -275,6 +306,37 @@ class Controller:
 
         self.packet_handler.WheelMode(joint_id)
         self.packet_handler.WriteSpec(joint_id, speed, accel)
+    def joint_goto_pos(self, joint_id: int, pos: int, speed: int, accel: int):
+        if not self.packet_handler:
+            raise RuntimeError("Undefined packet handler")
+
+        self.packet_handler.NormalMode(joint_id)
+        result, error = self.packet_handler.write1ByteTxRx(
+            joint_id,
+            arm.SMS_STS_TORQUE_ENABLE,
+            1,
+        )
+        arm.check_result(
+            self.packet_handler,
+            result,
+            error,
+            f"Enable torque for ID {joint_id}",
+        )
+
+        result, error = self.packet_handler.WritePosEx(
+            joint_id,
+            pos,
+            speed,
+            accel,
+        )
+        arm.check_result(
+            self.packet_handler,
+            result,
+            error,
+            f"Register move for ID {joint_id}",
+        )
+
+        logger.info(f"Move sent to ID {joint_id} at position {pos}.")
 
     def disable_torque(self) -> None:
         if not self.packet_handler:
