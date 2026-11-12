@@ -5,8 +5,12 @@ from modules.logger import logger
 from modules.settings_loader import default_settings
 from modules.arm_controller import controller, MoveSingleJoint, DisableTorque, SingleJointSpeedDiag, MoveJointsNaive
 from modules.waypoint_manager import wp_manager
+from modules.sequence_manager import SequenceManager, SequenceWaypoint
 
 class Shell():
+    def __init__(self) -> None:
+        self._sequence_manager: SequenceManager | None = None
+
     def do_connect(self):
         controller.connect()
 
@@ -87,6 +91,45 @@ class Shell():
         servo_names = [j.name for j in default_settings.servo.joints]
         logger.info(f"Waypoint ID {wp_id} at {file}.csv found: {waypoint}")
         controller.worker_thread.inst_queue.append(MoveJointsNaive({ name: waypoint[i] for i, name in enumerate(servo_names)}))
+    
+    def do_sequence(self, cmd: str, *args: str):
+        if cmd == "start":
+            if self._sequence_manager is not None:
+                logger.warning("Sequence started recording already")
+                return
+            
+            self._sequence_manager = SequenceManager()
+            return
+        if not self._sequence_manager:
+            raise RuntimeError("Sequence not started yet")
+
+        match cmd:
+            case "save":
+                name = args[0]
+
+                if not name:
+                    raise ValueError("Please enter a name for your sequence")
+
+                self._sequence_manager.save()
+                self._sequence_manager = None
+            case "record":
+                speed, accel = args
+                speed_int = int(speed) if speed else default_settings.servo.configs["move_speed"]
+                accel_int = int(accel) if accel else default_settings.servo.configs["move_acceleration"]
+
+                if not controller.servo_readings:
+                    raise RuntimeError("Servo readings not initalized")
+
+                readings = controller.servo_readings.items() 
+                positions = { n: sr.rawpos for n, sr in readings if n != "gripper"}
+
+                self._sequence_manager.waypoints.append(SequenceWaypoint(positions, speed_int, accel_int))
+            case "undo":
+                self._sequence_manager.waypoints.pop()
+            case "clear":
+                self._sequence_manager.waypoints.clear()
+            case _:
+                logger.info("Sequence commands: start, save, record, undo, clear")
 
     def default(self, cmd: str):
         logger.warning(f"Unknown command: {cmd}")
