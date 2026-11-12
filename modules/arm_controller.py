@@ -96,11 +96,30 @@ class MoveJointsNaive(WorkerInstruction):
         super().__init__()
 
         self.joints = joints
+        self.sent_command = False
+        self.is_moving = False
 
     def run(self) -> None:
         super().run()
 
         if not controller.packet_handler:
+            return
+
+        if self.sent_command:
+            for jname in self.joints.keys():
+                joint_id = next(j.id for j in default_settings.servo.joints if j.name == jname)
+                moving, result, error = controller.packet_handler.ReadMoving(joint_id)
+                arm.check_result(
+                    controller.packet_handler,
+                    result,
+                    error,
+                    f"Read moving status for servo {joint_id}",
+                )
+
+                # Some BS yeah but whatevers
+                self.is_moving = not not moving
+
+            self.finished = not self.is_moving
             return
 
         # speed = default_settings.servo.configs["move_speed"]
@@ -119,7 +138,7 @@ class MoveJointsNaive(WorkerInstruction):
                 raise RuntimeError(controller.packet_handler.getTxRxResult(result))
         finally:
             controller.packet_handler.groupSyncWrite.clearParam()
-            self.finished = True
+            self.sent_command = True
 
 class SingleJointSpeedDiag(WorkerInstruction):
     duration_seconds = 3
