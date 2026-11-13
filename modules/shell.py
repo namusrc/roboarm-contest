@@ -3,7 +3,7 @@ import cmd
 from modules import arm_controller
 from modules.logger import logger
 from modules.settings_loader import default_settings
-from modules.arm_controller import controller, MoveSingleJoint, DisableTorque, SingleJointSpeedDiag, MoveJointsNaive
+from modules.arm_controller import WorkerInstruction, controller, MoveSingleJoint, DisableTorque, SingleJointSpeedDiag, MoveJointsNaive
 from modules.waypoint_manager import wp_manager
 from modules.sequence_manager import SequenceManager, SequenceWaypoint
 
@@ -99,6 +99,16 @@ class Shell():
                 return
             
             self._sequence_manager = SequenceManager()
+            return
+        elif cmd == "load":
+            fileName = args[0]
+            waypoints = SequenceManager.load(fileName)
+
+            inst_list: list[WorkerInstruction] = []
+            for wp in waypoints:
+                inst_list.append(MoveJointsNaive(wp.positions))
+
+            controller.worker_thread.inst_queue.extend(inst_list)
             return
         if not self._sequence_manager:
             raise RuntimeError("Sequence not started yet")
