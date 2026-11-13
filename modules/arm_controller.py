@@ -92,8 +92,11 @@ class MoveSingleJoint(WorkerInstruction):
 
 # Naive approach to moving all joints by using normal mode
 class MoveJointsNaive(WorkerInstruction):
-    def __init__(self, joints: dict[str, int]) -> None:
+    def __init__(self, joints: dict[str, int], speed: int = 500, accel: int = 200) -> None:
         super().__init__()
+
+        self.speed = speed
+        self.accel = accel
 
         self.joints = joints
         self.sent_command = False
@@ -123,8 +126,8 @@ class MoveJointsNaive(WorkerInstruction):
             return
 
         # speed = default_settings.servo.configs["move_speed"]
-        speed = 500
-        accel = default_settings.servo.configs["move_acceleration"]
+        speed = self.speed
+        accel = self.accel
         try:
             for name, pos in self.joints.items():
                 joint_id = next(j.id for j in default_settings.servo.joints if j.name == name)
@@ -139,6 +142,86 @@ class MoveJointsNaive(WorkerInstruction):
         finally:
             controller.packet_handler.groupSyncWrite.clearParam()
             self.sent_command = True
+
+class GripperClose(WorkerInstruction):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.sentCommand = False
+        self.runningAverageList: deque[int] = deque()
+    
+    def run(self) -> None:
+        speed = 1000
+        accel = 100
+
+        if not controller.packet_handler:
+            self.finished = True
+            raise RuntimeError("Packet handler uninitialized")
+        if not controller.servo_readings:
+            self.finished = True
+            raise RuntimeError("Servo readings uninitialized")
+
+        joint_id = next(j.id for j in default_settings.servo.joints if j.name == "gripper")
+        if not self.sentCommand:
+            controller.joint_goto_pos(joint_id, 1670, speed, accel)
+            self.sentCommand = True
+
+        gripper_reading = controller.servo_readings["gripper"]
+        
+        # Quit if its too tight ( ͡° ͜ʖ ͡°)
+        moving, result, error = controller.packet_handler.ReadMoving(joint_id)
+        arm.check_result(
+            controller.packet_handler,
+            result,
+            error,
+            f"Read moving status for servo {joint_id}",
+        )
+
+        if not moving:
+            logger.debug(f"Hey {joint_id}")
+
+        self.finished = not moving
+
+        self.runningAverageList.append(gripper_reading.speed)
+        if len(self.runningAverageList) == 5:
+            avg = sum(self.runningAverageList) // 5
+            if abs(avg) <= 50:
+                self.finished = True
+                return
+
+            self.runningAverageList.popleft()
+        
+
+class GripperOpen(WorkerInstruction):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.sentCommand = False 
+        self.waitToFinish = True
+
+    def run(self) -> None:
+        joint_id = next(j.id for j in default_settings.servo.joints if j.name == "gripper")
+
+        if not controller.packet_handler:
+            self.finished = True
+            raise RuntimeError("Packet handler uninitialized")
+
+        if not self.sentCommand:
+            controller.joint_goto_pos(joint_id, 1275, 1000, 254)
+            self.sentCommand = True
+            if not self.waitToFinish:
+                self.finished = True
+                return
+
+        moving, result, error = controller.packet_handler.ReadMoving(joint_id)
+        arm.check_result(
+            controller.packet_handler,
+            result,
+            error,
+            f"Read moving status for servo {joint_id}",
+        )
+
+        self.finished = not moving
 
 class SingleJointSpeedDiag(WorkerInstruction):
     duration_seconds = 3

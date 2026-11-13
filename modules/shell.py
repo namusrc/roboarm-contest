@@ -3,7 +3,7 @@ import cmd
 from modules import arm_controller
 from modules.logger import logger
 from modules.settings_loader import default_settings
-from modules.arm_controller import WorkerInstruction, controller, MoveSingleJoint, DisableTorque, SingleJointSpeedDiag, MoveJointsNaive
+from modules.arm_controller import GripperClose, GripperOpen, WorkerInstruction, controller, MoveSingleJoint, DisableTorque, SingleJointSpeedDiag, MoveJointsNaive
 from modules.waypoint_manager import wp_manager
 from modules.sequence_manager import SequenceManager, SequenceWaypoint
 
@@ -106,7 +106,7 @@ class Shell():
 
             inst_list: list[WorkerInstruction] = []
             for wp in waypoints:
-                inst_list.append(MoveJointsNaive(wp.positions))
+                inst_list.append(MoveJointsNaive(wp.positions, wp.speed, wp.accel))
 
             controller.worker_thread.inst_queue.extend(inst_list)
             return
@@ -144,6 +144,18 @@ class Shell():
                 logger.info("Cleared sequence list")
             case _:
                 logger.info("Sequence commands: start, save, record, undo, clear")
+    
+    def do_gripper(self, cmd: str):
+        inst: WorkerInstruction | None = None
+        if cmd == "open":
+            inst = GripperOpen()
+        elif cmd == "close":
+            inst = GripperClose()
+
+        if not inst:
+            raise ValueError("Unknown gripper command")
+        
+        controller.worker_thread.inst_queue.append(inst)
 
     def default(self, cmd: str):
         logger.warning(f"Unknown command: {cmd}")
