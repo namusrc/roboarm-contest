@@ -123,11 +123,15 @@ class Shell():
                 readings = controller.servo_readings.items() 
                 positions = { n: sr.rawpos for n, sr in readings if n != "gripper"}
 
+                logger.info(f"Recording positions: {positions}")
+
                 self._sequence_manager.waypoints.append(SequenceWaypoint(positions, speed_int, accel_int))
             case "undo":
-                self._sequence_manager.waypoints.pop()
+                last = self._sequence_manager.waypoints.pop()
+                logger.info(f"Undoing last sequence coordinate {last}. Current length: {len(self._sequence_manager.waypoints)}")
             case "clear":
                 self._sequence_manager.waypoints.clear()
+                logger.info("Cleared sequence list")
             case _:
                 logger.info("Sequence commands: start, save, record, undo, clear")
 
