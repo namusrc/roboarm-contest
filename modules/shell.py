@@ -110,7 +110,7 @@ class Shell():
                 if not name:
                     raise ValueError("Please enter a name for your sequence")
 
-                self._sequence_manager.save()
+                self._sequence_manager.save(name)
                 self._sequence_manager = None
             case "record":
                 speed, accel = args
