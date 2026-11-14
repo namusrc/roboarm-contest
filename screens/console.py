@@ -11,28 +11,7 @@ from modules import logger
 from modules.shell import shell 
 
 from widgets.LogWidget import LogWidget
-
-class CommandInput(Input):
-    DEFAULT_CSS = """
-    CommandInput {
-        margin: 0;
-    }
-    """
-
-    BINDINGS = [Binding("escape", "blur", "Blur", show=False)]
-
-    def __init__(self) -> None:
-        super().__init__(compact=True)
-        self.placeholder = "(i) Execute a command ..."
-
-    def action_blur(self) -> None:
-        self.blur()
-
-    def on_input_submitted(self):
-        logger.logger.info(self.value)
-        shell.run(self.value)
-        self.clear()
-        self.blur()
+from widgets.CommandInput import CommandInput
 
 class Console(Screen):
     BINDINGS = ui_globals.MAIN_FOOTER_BINDINGS + [Binding("i", "input_focus", "Focus", show=False)]
