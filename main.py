@@ -1,7 +1,6 @@
 from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header
 
-from screens.console import Console
 from screens.home import Home
 from screens.controller import Controller
 
@@ -11,7 +10,6 @@ import modules.arm_controller as arm
 
 class RoboarmControllerApp(App):
     SCREENS = { 
-               "console": Console,
                "home": Home,
                "controller": Controller,
     }
