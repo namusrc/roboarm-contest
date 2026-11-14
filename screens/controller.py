@@ -7,7 +7,6 @@ from textual.screen import Screen
 from textual.widget import Widget
 from textual.widgets import DataTable, Header, Footer, Label, Placeholder, Rule, Static
 
-from screens.console import LogWidget
 import ui_globals
 
 from modules.logger import logger
@@ -24,10 +23,7 @@ class Controller(Screen):
     BINDINGS = [
         ('escape', 'app.switch_screen(\'home\')', 'Home'),
         ('q', 'quit', 'Quit'),
-        # Movement Keys
     ]
-
-    def action_move(self, joint_id: int, sign: int)
 
     def compose(self) -> ComposeResult:
         yield Header()
