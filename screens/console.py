@@ -3,31 +3,14 @@ from typing import Callable, Deque
 from textual.app import CommandCallback, ComposeResult
 from textual.binding import Binding
 from textual.screen import Screen
-from textual.widgets import Footer, Header, Input, RichLog
+from textual.widgets import Footer, Header, Input
 
 import ui_globals
 
 from modules import logger
 from modules.shell import shell 
 
-class LogWidget(RichLog):
-    DEFAULT_CSS = """
-    LogWidget {
-        scrollbar-visibility: hidden;
-    }
-    """
-    def __init__(self) -> None:
-        super().__init__(auto_scroll=True, wrap=True)
-
-    def on_log(self, msg: str) -> None:
-        self.write(msg)
-
-    def on_mount(self) -> None:
-        logger.handler.subscribe(self.on_log)
-
-        logHistory = logger.handler.get_history()
-        for log in logHistory:
-            self.write(log)
+from widgets.LogWidget import LogWidget
 
 class CommandInput(Input):
     DEFAULT_CSS = """
