@@ -221,3 +221,6 @@ __marimo__/
 
 # Logs
 modules/logs/*
+# Coords
+waypoints/*
+sequences/*
