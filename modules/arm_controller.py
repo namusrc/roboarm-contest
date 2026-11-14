@@ -313,7 +313,7 @@ class Worker(threading.Thread):
                 if self.current_instruction and not self.current_instruction.finished:
                     self.current_instruction.run()
                 elif self.inst_queue:
-                    inst = self.inst_queue.pop()
+                    inst = self.inst_queue.popleft()
                     self.current_instruction = inst
 
                     try: 
