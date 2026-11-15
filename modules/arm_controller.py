@@ -223,11 +223,36 @@ class GripperOpen(WorkerInstruction):
         self.finished = not moving
 
 class GripperPush(WorkerInstruction):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.sentCommand = False 
+        self.waitToFinish = True
+
     def run(self) -> None:
         super().run()
         gripper = next(j for j in default_settings.servo.joints if j.name == "gripper")
-        controller.joint_goto_pos(gripper.id, 2175, 1000, 254)
-        self.finished = True
+
+        if not controller.packet_handler:
+            self.finished = True
+            raise RuntimeError("Packet handler uninitialized")
+
+        if not self.sentCommand:
+            controller.joint_goto_pos(gripper.id, 2175, 1000, 254)
+            self.sentCommand = True
+            if not self.waitToFinish:
+                self.finished = True
+                return
+
+        moving, result, error = controller.packet_handler.ReadMoving(gripper.id)
+        arm.check_result(
+            controller.packet_handler,
+            result,
+            error,
+            f"Read moving status for servo {gripper.id}",
+        )
+
+        self.finished = not moving
 
 class SingleJointSpeedDiag(WorkerInstruction):
     duration_seconds = 3
