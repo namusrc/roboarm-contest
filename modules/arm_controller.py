@@ -151,41 +151,29 @@ class GripperClose(WorkerInstruction):
         self.runningAverageList: deque[int] = deque()
     
     def run(self) -> None:
-        speed = 1000
-        accel = 100
-
-        if not controller.packet_handler:
-            self.finished = True
-            raise RuntimeError("Packet handler uninitialized")
+        super().run()
         if not controller.servo_readings:
             self.finished = True
             raise RuntimeError("Servo readings uninitialized")
 
-        joint_id = next(j.id for j in default_settings.servo.joints if j.name == "gripper")
-        if not self.sentCommand:
-            controller.joint_goto_pos(joint_id, 1670, speed, accel)
-            self.sentCommand = True
+        gripper = next(j for j in default_settings.servo.joints if j.name == "gripper")
+        speed = 100
+        accel = 50
+        if not self.sent_command:
+            controller.joint_set_speed(gripper.id, speed, accel)
+            self.sent_command = True
+            return
 
-        gripper_reading = controller.servo_readings["gripper"]
-        
-        # Quit if its too tight ( ͡° ͜ʖ ͡°)
-        moving, result, error = controller.packet_handler.ReadMoving(joint_id)
-        arm.check_result(
-            controller.packet_handler,
-            result,
-            error,
-            f"Read moving status for servo {joint_id}",
-        )
+        gripper_reading = controller.servo_readings.get("gripper")
+        if gripper_reading is None:
+            self.finished = True
+            raise RuntimeError("Gripper servo reading not found")
 
-        if not moving:
-            logger.debug(f"Hey {joint_id}")
-
-        self.finished = not moving
-
-        self.runningAverageList.append(gripper_reading.speed)
-        if len(self.runningAverageList) == 5:
-            avg = sum(self.runningAverageList) // 5
-            if abs(avg) <= 50:
+        self.running_average.append(gripper_reading.speed)
+        if len(self.running_average) == 5:
+            average_speed = sum(self.running_average) // 5
+            if abs(average_speed) <= 50:
+                controller.joint_set_speed(gripper.id, 0, accel)
                 self.finished = True
                 return
 
@@ -193,35 +181,18 @@ class GripperClose(WorkerInstruction):
         
 
 class GripperOpen(WorkerInstruction):
-    def __init__(self) -> None:
-        super().__init__()
-
-        self.sentCommand = False 
-        self.waitToFinish = True
-
     def run(self) -> None:
-        joint_id = next(j.id for j in default_settings.servo.joints if j.name == "gripper")
+        super().run()
+        gripper = next(j for j in default_settings.servo.joints if j.name == "gripper")
+        controller.joint_goto_pos(gripper.id, 1275, 1000, 254)
+        self.finished = True
 
-        if not controller.packet_handler:
-            self.finished = True
-            raise RuntimeError("Packet handler uninitialized")
-
-        if not self.sentCommand:
-            controller.joint_goto_pos(joint_id, 1275, 1000, 254)
-            self.sentCommand = True
-            if not self.waitToFinish:
-                self.finished = True
-                return
-
-        moving, result, error = controller.packet_handler.ReadMoving(joint_id)
-        arm.check_result(
-            controller.packet_handler,
-            result,
-            error,
-            f"Read moving status for servo {joint_id}",
-        )
-
-        self.finished = not moving
+class GripperPush(WorkerInstruction):
+    def run(self) -> None:
+        super().run()
+        gripper = next(j for j in default_settings.servo.joints if j.name == "gripper")
+        controller.joint_goto_pos(gripper.id, 1275, 1000, 254)
+        self.finished = True
 
 class SingleJointSpeedDiag(WorkerInstruction):
     duration_seconds = 3

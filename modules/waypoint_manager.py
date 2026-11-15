@@ -14,7 +14,7 @@ class WaypointManager:
         if not filePath.is_file():
             logger.info(f"Initialized file at {filePath}")
             with open(filePath, "w") as f:
-                header = ["id"] +  [j.name for j in default_settings.servo.joints]
+                header = ["id"] +  [j.name for j in default_settings.servo.joints if j.name != "gripper"]
                 headerStr = ",".join(header)
                 f.write(headerStr + "\n")
 

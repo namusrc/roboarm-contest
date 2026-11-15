@@ -3,7 +3,7 @@ import cmd
 from modules import arm_controller
 from modules.logger import logger
 from modules.settings_loader import default_settings
-from modules.arm_controller import GripperClose, GripperOpen, WorkerInstruction, controller, MoveSingleJoint, DisableTorque, SingleJointSpeedDiag, MoveJointsNaive
+from modules.arm_controller import GripperClose, GripperOpen, GripperPush, WorkerInstruction, controller, MoveSingleJoint, DisableTorque, SingleJointSpeedDiag, MoveJointsNaive
 from modules.waypoint_manager import wp_manager
 from modules.sequence_manager import SequenceManager, SequenceWaypoint
 
@@ -75,8 +75,8 @@ class Shell():
         if not controller.servo_readings:
             raise ValueError("Controller servo readings not found")
 
-        readings = controller.servo_readings.values() 
-        readings_rawpos = [r.rawpos for r in readings]
+        readings = controller.servo_readings.items()
+        readings_rawpos = [r.rawpos for name, r in readings if name != "gripper"]
         wp_manager.writeWaypoint(readings_rawpos, file)
 
     def do_gotowp(self, wp_id: str, file = "default") -> None:
@@ -88,7 +88,7 @@ class Shell():
             logger.warning(f"Waypoint with ID {wp_id} in file {file} could not be found.")
             return
         waypoint = waypoint[1:]
-        servo_names = [j.name for j in default_settings.servo.joints]
+        servo_names = [j.name for j in default_settings.servo.joints if j.name != "gripper"]
         logger.info(f"Waypoint ID {wp_id} at {file}.csv found: {waypoint}")
         controller.worker_thread.inst_queue.append(MoveJointsNaive({ name: waypoint[i] for i, name in enumerate(servo_names)}))
     
@@ -151,6 +151,8 @@ class Shell():
             inst = GripperOpen()
         elif cmd == "close":
             inst = GripperClose()
+        elif cmd == "push":
+            inst = GripperPush()
 
         if not inst:
             raise ValueError("Unknown gripper command")
