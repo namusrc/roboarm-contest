@@ -5,7 +5,7 @@ from textual.app import ComposeResult
 from textual.containers import Container, Grid, Horizontal, Vertical
 from textual.screen import Screen
 from textual.widget import Widget
-from textual.widgets import DataTable, Header, Footer, Label, Placeholder, Rule, Static
+from textual.widgets import Button, DataTable, Header, Footer, Label, Placeholder, Rule, Static
 
 import ui_globals
 
@@ -18,6 +18,11 @@ class Controller(Screen):
     LogWidget {
         height: 2fr
     }
+
+    Button {
+        width: 100%;
+        height: 100%;
+    }
     """
 
     BINDINGS = [
@@ -28,6 +33,19 @@ class Controller(Screen):
     def compose(self) -> ComposeResult:
         yield Header()
         with Vertical():
-            yield RawSensorReading()
-            yield Label("")
+            with Horizontal():
+                with Vertical():
+                    yield Button()
+                    yield Button()
+                    yield Placeholder()
+                with Vertical():
+                    yield Button()
+                    yield Button()
+            with Horizontal():
+                with Vertical():
+                    yield Button()
+                    yield Button()
+                with Vertical():
+                    yield Button()
+                    yield Button()
         yield Footer()
