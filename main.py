@@ -1,9 +1,7 @@
 from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header
 
-from screens.console import Console
 from screens.home import Home
-from screens.controller import Controller
 
 import ui_globals
 
@@ -11,9 +9,7 @@ import modules.arm_controller as arm
 
 class RoboarmControllerApp(App):
     SCREENS = { 
-               "console": Console,
                "home": Home,
-               "controller": Controller,
     }
     BINDINGS = [('q', 'quit', 'Quit')]
     # BINDINGS = ui_globals.MAIN_FOOTER_BINDINGS
