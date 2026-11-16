@@ -76,8 +76,8 @@ class Home(Screen):
                     yield Button("Flick Middle")
                 with VerticalScroll():
                     yield Label("Full Seq.")
-                    yield Button("Flick")
-                    yield Button("Pickup")
+                    yield SequenceButton("flick")
+                    yield SequenceButton("pickup")
 
                     yield Label("Waypoints")
                     yield Button("Home")
