@@ -226,7 +226,7 @@ class GripperPush(WorkerInstruction):
     def run(self) -> None:
         super().run()
         gripper = next(j for j in default_settings.servo.joints if j.name == "gripper")
-        controller.joint_goto_pos(gripper.id, 1275, 1000, 254)
+        controller.joint_goto_pos(gripper.id, 2175, 1000, 254)
         self.finished = True
 
 class SingleJointSpeedDiag(WorkerInstruction):
