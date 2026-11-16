@@ -39,6 +39,13 @@ class SequenceButton(Button):
             case "pickup":
                 pass
 
+class HomeButton(Button):
+    def __init__(self):
+        super().__init__("Home")
+        
+    def on_button_pressed(self):
+        shell.shell.do_gotowp("0", "home")
+
 class Home(Screen):
     DEFAULT_CSS = """
     
@@ -80,7 +87,7 @@ class Home(Screen):
                     yield SequenceButton("pickup")
 
                     yield Label("Waypoints")
-                    yield Button("Home")
+                    yield HomeButton()
                 with VerticalScroll():
                     yield Label("Gripper")
                     yield GripperButton("open")
