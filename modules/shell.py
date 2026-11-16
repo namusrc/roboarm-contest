@@ -5,7 +5,7 @@ from modules.logger import logger
 from modules.settings_loader import default_settings
 from modules.arm_controller import GripperClose, GripperOpen, GripperPush, WorkerInstruction, controller, MoveSingleJoint, DisableTorque, SingleJointSpeedDiag, MoveJointsNaive
 from modules.waypoint_manager import wp_manager
-from modules.sequence_manager import SequenceManager, SequenceWaypoint
+from modules.sequence_manager import SequenceGripper, SequenceManager, SequenceWaypoint
 
 class Shell():
     def __init__(self) -> None:
@@ -106,7 +106,16 @@ class Shell():
 
             inst_list: list[WorkerInstruction] = []
             for wp in waypoints:
-                inst_list.append(MoveJointsNaive(wp.positions, wp.speed, wp.accel))
+                if isinstance(wp, SequenceWaypoint):
+                    inst_list.append(MoveJointsNaive(wp.positions, wp.speed, wp.accel))
+                elif isinstance(wp, SequenceGripper):
+                    match wp.move:
+                        case "open":
+                            inst_list.append(GripperOpen())
+                        case "close":
+                            inst_list.append(GripperClose())
+                        case "push":
+                            inst_list.append(GripperPush())
 
             controller.worker_thread.inst_queue.extend(inst_list)
             return
@@ -136,6 +145,14 @@ class Shell():
                 logger.info(f"Recording positions: {positions}")
 
                 self._sequence_manager.waypoints.append(SequenceWaypoint(positions, speed_int, accel_int))
+            case "gripper":
+                move = args[0]
+
+                if move not in ["open", "close", "push"]:
+                    raise ValueError("Invalid Gripper Move")
+
+                self.do_gripper(move)
+                self._sequence_manager.waypoints.append(SequenceGripper(move))
             case "undo":
                 last = self._sequence_manager.waypoints.pop()
                 logger.info(f"Undoing last sequence coordinate {last}. Current length: {len(self._sequence_manager.waypoints)}")
