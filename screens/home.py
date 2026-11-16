@@ -35,7 +35,7 @@ class SequenceButton(Button):
     def on_button_pressed(self):
         match self.btnType:
             case "flick":
-                shell.shell.do_sequence("load flick_new_v2")
+                shell.shell.do_sequence("load", "flick_new_v2")
             case "pickup":
                 pass
 
