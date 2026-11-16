@@ -26,6 +26,19 @@ class GripperButton(Button):
     def on_button_pressed(self):
         shell.shell.do_gripper(self.btnType)
 
+class SequenceButton(Button):
+    def __init__(self, btnType: Literal["flick", "pickup"]):
+        super().__init__(btnType.capitalize())
+
+        self.btnType = btnType
+        
+    def on_button_pressed(self):
+        match self.btnType:
+            case "flick":
+                shell.shell.do_sequence("load flick_new_v2")
+            case "pickup":
+                pass
+
 class Home(Screen):
     DEFAULT_CSS = """
     
