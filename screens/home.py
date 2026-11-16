@@ -46,6 +46,15 @@ class HomeButton(Button):
     def on_button_pressed(self):
         shell.shell.do_gotowp("0", "home")
 
+class EStopButton(Button):
+    def __init__(self):
+        super().__init__("ESTOP", variant="error")
+    
+    def on_button_pressed(self):
+        shell.shell.do_torqueoff()
+        shell.controller.worker_thread.current_instruction = None
+        shell.controller.worker_thread.inst_queue.clear()
+
 class Home(Screen):
     DEFAULT_CSS = """
     
@@ -96,4 +105,5 @@ class Home(Screen):
 
                     yield Label("Worker")
                     yield Button("Pause")
+                    yield EStopButton()
         yield Footer()
