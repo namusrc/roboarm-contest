@@ -1,3 +1,5 @@
+from typing import Literal
+
 from textual.reactive import reactive
 from textual.app import ComposeResult
 from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
@@ -6,6 +8,7 @@ from textual.binding import Binding
 from textual.widget import Widget
 from textual.widgets import Button, DataTable, Header, Footer, Label, Placeholder, Rule, Static
 
+from modules import shell
 import ui_globals
 
 from modules.logger import logger
@@ -13,6 +16,15 @@ from modules.logger import logger
 from widgets.RawSensorReading import RawSensorReading
 from widgets.LogWidget import LogWidget
 from widgets.CommandInput import CommandInput
+
+class GripperButton(Button):
+    def __init__(self, btnType: Literal["open", "close", "push"]):
+        super().__init__(btnType.capitalize())
+
+        self.btnType = btnType
+
+    def on_button_pressed(self):
+        shell.shell.do_gripper(self.btnType)
 
 class Home(Screen):
     DEFAULT_CSS = """
@@ -53,13 +65,15 @@ class Home(Screen):
                     yield Label("Full Seq.")
                     yield Button("Flick")
                     yield Button("Pickup")
+
                     yield Label("Waypoints")
                     yield Button("Home")
                 with VerticalScroll():
                     yield Label("Gripper")
-                    yield Button("Open")
-                    yield Button("Close")
-                    yield Button("Push")
+                    yield GripperButton("open")
+                    yield GripperButton("close")
+                    yield GripperButton("push")
+
                     yield Label("Worker")
                     yield Button("Pause")
         yield Footer()
