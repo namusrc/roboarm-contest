@@ -6,8 +6,13 @@ from typing import Any
 from modules.logger import logger
 
 SEQUENCES_DIR = Path(__file__).resolve().parent.parent / "sequences"
+
 @dataclass
-class SequenceWaypoint:
+class SequenceObject:
+    pass
+
+@dataclass
+class SequenceWaypoint(SequenceObject):
     positions: dict[str, int]
     speed: int
     accel: int
@@ -19,7 +24,7 @@ class SequenceWaypoint:
 class SequenceManager:
     def __init__(self) -> None:
         SEQUENCES_DIR.mkdir(exist_ok=True)
-        self.waypoints: deque[SequenceWaypoint] = deque()
+        self.waypoints: deque[SequenceObject] = deque()
     @staticmethod
     def getFilePath(fileName: str):
         return Path(SEQUENCES_DIR / (fileName + ".json"))
